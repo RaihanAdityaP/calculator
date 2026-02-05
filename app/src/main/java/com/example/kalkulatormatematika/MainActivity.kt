@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import java.util.Locale
 import kotlin.math.*
 
@@ -46,7 +47,17 @@ fun CalculatorScreen() {
     var currentInput by remember { mutableStateOf("") }
     var operator by remember { mutableStateOf("") }
     var firstOperand by remember { mutableDoubleStateOf(0.0) }
-    var isScientificMode by remember { mutableStateOf(false) }
+
+    // Fungsi untuk menghitung ukuran font dinamis berdasarkan panjang teks
+    fun getDisplayFontSize(text: String): TextUnit {
+        return when {
+            text.length <= 8 -> 64.sp
+            text.length <= 12 -> 48.sp
+            text.length <= 16 -> 36.sp
+            text.length <= 20 -> 28.sp
+            else -> 22.sp
+        }
+    }
 
     fun appendToInput(value: String) {
         currentInput += value
@@ -119,19 +130,13 @@ fun CalculatorScreen() {
         ) {
             Text(
                 text = "Calculator",
-                fontSize = 20.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
             )
-            Spacer(modifier = Modifier.width(24.dp))
-            Text(
-                text = "Converter",
-                fontSize = 20.sp,
-                color = Color.Gray
-            )
         }
 
-        // Display
+        // Display dengan ukuran font dinamis
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -141,70 +146,11 @@ fun CalculatorScreen() {
         ) {
             Text(
                 text = display,
-                fontSize = 64.sp,
+                fontSize = getDisplayFontSize(display),
                 color = Color.Black,
                 textAlign = TextAlign.End,
-                maxLines = 1
+                maxLines = 2
             )
-        }
-
-        // Scientific Panel
-        if (isScientificMode) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                ScientificButton("2nd") { }
-                ScientificButton("deg") { }
-                ScientificButton("sin") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        currentInput = formatResult(sin(Math.toRadians(value)))
-                        display = currentInput
-                    }
-                }
-                ScientificButton("cos") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        currentInput = formatResult(cos(Math.toRadians(value)))
-                        display = currentInput
-                    }
-                }
-                ScientificButton("tan") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        currentInput = formatResult(tan(Math.toRadians(value)))
-                        display = currentInput
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                ScientificButton("x^y") { setOperator("^") }
-                ScientificButton("lg") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        currentInput = formatResult(log10(value))
-                        display = currentInput
-                    }
-                }
-                ScientificButton("ln") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        currentInput = formatResult(ln(value))
-                        display = currentInput
-                    }
-                }
-                ScientificButton("(") { appendToInput("(") }
-                ScientificButton(")") { appendToInput(")") }
-            }
         }
 
         // Button Grid
@@ -213,18 +159,53 @@ fun CalculatorScreen() {
                 .fillMaxWidth()
                 .padding(8.dp)
         ) {
-            // Row 1
+            // Row 1 - Fungsi Matematika
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ScientificButton("√x") {
+                MathButton("√") {
                     if (currentInput.isNotEmpty()) {
                         val value = currentInput.toDoubleOrNull() ?: 0.0
                         currentInput = formatResult(sqrt(value))
                         display = currentInput
                     }
                 }
+                MathButton("x²") {
+                    if (currentInput.isNotEmpty()) {
+                        val value = currentInput.toDoubleOrNull() ?: 0.0
+                        currentInput = formatResult(value.pow(2))
+                        display = currentInput
+                    }
+                }
+                MathButton("x^y") { setOperator("^") }
+                MathButton("x!") {
+                    if (currentInput.isNotEmpty()) {
+                        val value = currentInput.toIntOrNull() ?: 0
+                        if (value <= 20) { // Batasi faktorial untuk menghindari overflow
+                            currentInput = factorial(value).toString()
+                            display = currentInput
+                        } else {
+                            display = "Error"
+                        }
+                    }
+                }
+                MathButton("π") {
+                    if (currentInput.isEmpty() || currentInput == "0") {
+                        currentInput = formatResult(Math.PI)
+                    } else {
+                        val value = currentInput.toDoubleOrNull() ?: 0.0
+                        currentInput = formatResult(value * Math.PI)
+                    }
+                    display = currentInput
+                }
+            }
+
+            // Row 2
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
                 OperatorButton("AC") { clear() }
                 OperatorButton("⌫") {
                     if (currentInput.isNotEmpty()) {
@@ -242,42 +223,15 @@ fun CalculatorScreen() {
                 OperatorButton("÷") { setOperator("÷") }
             }
 
-            // Row 2
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                ScientificButton("x!") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toIntOrNull() ?: 0
-                        currentInput = factorial(value).toString()
-                        display = currentInput
-                    }
-                }
-                NumberButton("7") { appendToInput("7") }
-                NumberButton("8") { appendToInput("8") }
-                NumberButton("9") { appendToInput("9") }
-                OperatorButton("×") { setOperator("×") }
-            }
-
             // Row 3
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ScientificButton("1/x") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        if (value != 0.0) {
-                            currentInput = formatResult(1 / value)
-                            display = currentInput
-                        }
-                    }
-                }
-                NumberButton("4") { appendToInput("4") }
-                NumberButton("5") { appendToInput("5") }
-                NumberButton("6") { appendToInput("6") }
-                OperatorButton("-") { setOperator("-") }
+                NumberButton("7") { appendToInput("7") }
+                NumberButton("8") { appendToInput("8") }
+                NumberButton("9") { appendToInput("9") }
+                OperatorButton("×") { setOperator("×") }
             }
 
             // Row 4
@@ -285,14 +239,10 @@ fun CalculatorScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ScientificButton("π") {
-                    currentInput = formatResult(Math.PI)
-                    display = currentInput
-                }
-                NumberButton("1") { appendToInput("1") }
-                NumberButton("2") { appendToInput("2") }
-                NumberButton("3") { appendToInput("3") }
-                OperatorButton("+") { setOperator("+") }
+                NumberButton("4") { appendToInput("4") }
+                NumberButton("5") { appendToInput("5") }
+                NumberButton("6") { appendToInput("6") }
+                OperatorButton("-") { setOperator("-") }
             }
 
             // Row 5
@@ -300,13 +250,17 @@ fun CalculatorScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ScientificButton("f(x)") {
-                    isScientificMode = !isScientificMode
-                }
-                NumberButton("e") {
-                    currentInput = formatResult(Math.E)
-                    display = currentInput
-                }
+                NumberButton("1") { appendToInput("1") }
+                NumberButton("2") { appendToInput("2") }
+                NumberButton("3") { appendToInput("3") }
+                OperatorButton("+") { setOperator("+") }
+            }
+
+            // Row 6
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
                 NumberButton("0") { appendToInput("0") }
                 NumberButton(".") {
                     if (!currentInput.contains(".")) {
@@ -361,7 +315,7 @@ fun RowScope.EqualsButton(text: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier
-            .weight(1f)
+            .weight(2f)
             .height(70.dp)
             .padding(4.dp),
         shape = RoundedCornerShape(16.dp),
@@ -375,7 +329,7 @@ fun RowScope.EqualsButton(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun RowScope.ScientificButton(text: String, onClick: () -> Unit) {
+fun RowScope.MathButton(text: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier
@@ -384,10 +338,10 @@ fun RowScope.ScientificButton(text: String, onClick: () -> Unit) {
             .padding(4.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.White,
-            contentColor = Color.Gray
+            containerColor = Color(0xFFE3F2FD),
+            contentColor = Color(0xFF1976D2)
         )
     ) {
-        Text(text = text, fontSize = 16.sp)
+        Text(text = text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
-}
+}git
