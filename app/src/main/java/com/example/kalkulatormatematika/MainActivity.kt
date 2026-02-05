@@ -15,7 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.TextUnit
 import java.util.Locale
 import kotlin.math.*
 
@@ -47,17 +46,6 @@ fun CalculatorScreen() {
     var currentInput by remember { mutableStateOf("") }
     var operator by remember { mutableStateOf("") }
     var firstOperand by remember { mutableDoubleStateOf(0.0) }
-
-    // Fungsi untuk menghitung ukuran font dinamis berdasarkan panjang teks
-    fun getDisplayFontSize(text: String): TextUnit {
-        return when {
-            text.length <= 8 -> 64.sp
-            text.length <= 12 -> 48.sp
-            text.length <= 16 -> 36.sp
-            text.length <= 20 -> 28.sp
-            else -> 22.sp
-        }
-    }
 
     fun appendToInput(value: String) {
         currentInput += value
@@ -115,6 +103,14 @@ fun CalculatorScreen() {
         return result
     }
 
+    // Calculate dynamic font size based on display length
+    val displayFontSize = when {
+        display.length > 12 -> 32.sp
+        display.length > 10 -> 40.sp
+        display.length > 8 -> 48.sp
+        else -> 64.sp
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -130,13 +126,13 @@ fun CalculatorScreen() {
         ) {
             Text(
                 text = "Calculator",
-                fontSize = 24.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
             )
         }
 
-        // Display dengan ukuran font dinamis
+        // Display
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -146,7 +142,7 @@ fun CalculatorScreen() {
         ) {
             Text(
                 text = display,
-                fontSize = getDisplayFontSize(display),
+                fontSize = displayFontSize,
                 color = Color.Black,
                 textAlign = TextAlign.End,
                 maxLines = 2
@@ -159,53 +155,59 @@ fun CalculatorScreen() {
                 .fillMaxWidth()
                 .padding(8.dp)
         ) {
-            // Row 1 - Fungsi Matematika
+            // Row 1 - Scientific Functions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                MathButton("√") {
+                ScientificButton("x^y") { setOperator("^") }
+                ScientificButton("√x") {
                     if (currentInput.isNotEmpty()) {
                         val value = currentInput.toDoubleOrNull() ?: 0.0
                         currentInput = formatResult(sqrt(value))
                         display = currentInput
                     }
                 }
-                MathButton("x²") {
+                ScientificButton("x!") {
                     if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        currentInput = formatResult(value.pow(2))
+                        val value = currentInput.toIntOrNull() ?: 0
+                        currentInput = factorial(value).toString()
                         display = currentInput
                     }
                 }
-                MathButton("x^y") { setOperator("^") }
-                MathButton("x!") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toIntOrNull() ?: 0
-                        if (value <= 20) { // Batasi faktorial untuk menghindari overflow
-                            currentInput = factorial(value).toString()
-                            display = currentInput
-                        } else {
-                            display = "Error"
-                        }
-                    }
-                }
-                MathButton("π") {
-                    if (currentInput.isEmpty() || currentInput == "0") {
-                        currentInput = formatResult(Math.PI)
-                    } else {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        currentInput = formatResult(value * Math.PI)
-                    }
+                ScientificButton("π") {
+                    currentInput = formatResult(Math.PI)
                     display = currentInput
                 }
+                OperatorButton("÷") { setOperator("÷") }
             }
 
-            // Row 2
+            // Row 2 - Trigonometry
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
+                ScientificButton("sin") {
+                    if (currentInput.isNotEmpty()) {
+                        val value = currentInput.toDoubleOrNull() ?: 0.0
+                        currentInput = formatResult(sin(Math.toRadians(value)))
+                        display = currentInput
+                    }
+                }
+                ScientificButton("cos") {
+                    if (currentInput.isNotEmpty()) {
+                        val value = currentInput.toDoubleOrNull() ?: 0.0
+                        currentInput = formatResult(cos(Math.toRadians(value)))
+                        display = currentInput
+                    }
+                }
+                ScientificButton("tan") {
+                    if (currentInput.isNotEmpty()) {
+                        val value = currentInput.toDoubleOrNull() ?: 0.0
+                        currentInput = formatResult(tan(Math.toRadians(value)))
+                        display = currentInput
+                    }
+                }
                 OperatorButton("AC") { clear() }
                 OperatorButton("⌫") {
                     if (currentInput.isNotEmpty()) {
@@ -213,14 +215,6 @@ fun CalculatorScreen() {
                         display = currentInput.ifEmpty { "0" }
                     }
                 }
-                OperatorButton("%") {
-                    if (currentInput.isNotEmpty()) {
-                        val value = currentInput.toDoubleOrNull() ?: 0.0
-                        currentInput = formatResult(value / 100)
-                        display = currentInput
-                    }
-                }
-                OperatorButton("÷") { setOperator("÷") }
             }
 
             // Row 3
@@ -261,7 +255,9 @@ fun CalculatorScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                NumberButton("0") { appendToInput("0") }
+                NumberButton("0") {
+                    appendToInput("0")
+                }
                 NumberButton(".") {
                     if (!currentInput.contains(".")) {
                         if (currentInput.isEmpty()) currentInput = "0"
@@ -329,7 +325,7 @@ fun RowScope.EqualsButton(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun RowScope.MathButton(text: String, onClick: () -> Unit) {
+fun RowScope.ScientificButton(text: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier
@@ -338,10 +334,10 @@ fun RowScope.MathButton(text: String, onClick: () -> Unit) {
             .padding(4.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFFE3F2FD),
-            contentColor = Color(0xFF1976D2)
+            containerColor = Color.White,
+            contentColor = Color(0xFFFF9800)
         )
     ) {
-        Text(text = text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(text = text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
     }
-}git
+}
